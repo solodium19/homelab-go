@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: voting-app-deployment
+  labels:
+    name: voting-app-deployment
+    app: demo-voting-app
+spec:
+ replicas: 2
+ selector:
+  matchLabels:
+   name: voting-app-pod
+   app: demo-voting-app
+ template:
+  metadata:
+   name: voting-app-pod
+   labels:
+     name: voting-app-pod
+     app: demo-voting-app
+  spec:
+   imagePullSecrets:
+   - name: gitlab-regcred
+   containers:
+   - name: voting-app
+     image: registry.gitlab.com/solodium191/homelab-go/vote
+     ports:
+         - containerPort: 80
+ 

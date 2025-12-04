@@ -1,0 +1,3 @@
+resources:
+  - result-app-deployment.yml
+  - result-app-service.yml

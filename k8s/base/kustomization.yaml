@@ -1,0 +1,6 @@
+resources:
+  - db
+  - redis
+  - result 
+  - vote 
+  - worker

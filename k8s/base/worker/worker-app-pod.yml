@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: worker-app-pod
+  labels:
+    name: worker-app-pod
+    app: demo-voting-app
+spec:
+  imagePullSecret:
+  - name: gitlab-regcred
+  containers:
+  - name: worker-app
+    image: registry.gitlab.com/solodium191/homelab-go/worker

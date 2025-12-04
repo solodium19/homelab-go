@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: postgres-pod
+  labels:
+    name: postgres-pod
+    app: demo-voting-app
+spec:
+  volume:
+  - name: mybd
+    PersistentVolumeClaim: 
+     claimName: myclaim-bd
+  containers:
+  - name: postgres
+    image: postgres
+    env:
+    - name: POSTGRES_USER
+      value: postgres
+    - name:  POSTGRES_PASSWORD
+      value: postgres
+    - name: POSTGRES_HOST_AUTH_METHOD
+      value: trust
+    volumeMounts:
+    - mountPath: /var/lib/postgresql/data
+      name: mybd
+    ports:
+     - containerPort: 5432
