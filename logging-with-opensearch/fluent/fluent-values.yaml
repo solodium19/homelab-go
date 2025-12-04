@@ -1,0 +1,65 @@
+tolerations:
+ - operator: Exists
+
+outputs:
+  opensearch:
+    host: "opensearch-cluster-single"
+    port: 9200
+    index: "logs"
+    type: "_doc"
+    tls: "On"
+    tls.verify: "Off"
+    aws_auth: "Off"
+    http_User: "admin"
+    http_Passwd: "Vladik.20041"
+
+
+image:
+  repository: cr.fluentbit.io/fluent/fluent-bit
+  tag: 3.1.6
+
+config:
+  service: |
+    [SERVICE]
+        Flush        1
+        Daemon       Off
+        Log_Level    info
+        Parsers_File parsers.conf
+        HTTP_Server On
+        HTTP_Listen 0.0.0.0
+        HTTP_Port 2020
+  inputs: |
+    [INPUT]
+        Name tail
+        Path /var/log/containers/*.log
+        Tag kube.*
+        Mem_Buf_Limit 5MB
+        Skip_Long_Lines On
+
+  filters: |
+    [FILTER]
+        Name kubernetes
+        Match kube.*
+        Merge_Log On
+        Keep_Log Off
+
+  outputs: |
+    [OUTPUT]
+        Name opensearch
+        Match *
+        Host opensearch-cluster-single
+        Port 9200
+        Index fluentbit
+        Suppress_Type_Name On
+        Replace_Dots On
+        TLS on
+        TLS.Verify Off
+        HTTP_User admin
+        HTTP_Passwd Vladik.20041
+
+parsers: |
+  [PARSER]
+      Name        docker
+      Format      json
+      Time_Key    time
+      Time_Format %Y-%m-%dT%H:%M:%S.%L

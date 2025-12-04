@@ -1,3 +1,0 @@
-resources:
-  - voting-app-deployment.yml
-  - voting-app-service.yml

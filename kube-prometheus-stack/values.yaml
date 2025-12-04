@@ -1,0 +1,150 @@
+alertmanager:
+  enabled: true
+
+  config:
+    global:
+      resolve_timeout: 5m
+
+    route:
+      group_by: ['namespace', 'alertname']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'telegram-notifications'
+
+      routes:
+        - receiver: 'telegram-critical'
+          matchers:
+            - severity =~ "critical|error"
+          repeat_interval: 5m
+
+        - receiver: 'telegram-warning'
+          matchers:
+            - severity =~ "warning"
+          repeat_interval: 30m
+
+        - receiver: 'null'
+          matchers:
+            - alertname = "Watchdog"
+
+    receivers:
+      - name: 'telegram-notifications'
+        telegram_configs:
+          - bot_token: '8569699896:AAH7oO91jt9i1F-63P5CUfq1RZ1U7VKnsZc'
+            chat_id: -1003410212815
+            parse_mode: 'HTML'
+            message: |
+              🌐 <b>ALERT FIRED</b>
+
+              {{ range .Alerts }}
+              🔔 <b>{{ .Annotations.summary }}</b>
+
+              📝 <b>Description:</b> {{ .Annotations.description }}
+              📊 <b>Status:</b> {{ .Status }}
+
+              <b>🏷 Labels:</b>
+              {{ range .Labels.SortedPairs }}
+              • <code>{{ .Name }}={{ .Value }}</code>
+              {{ end }}
+
+              {{ end }}
+            send_resolved: true
+
+      - name: 'telegram-critical'
+        telegram_configs:
+          - bot_token: '8569699896:AAH7oO91jt9i1F-63P5CUfq1RZ1U7VKnsZc'
+            chat_id: -1003410212815
+            parse_mode: 'HTML'
+            message: |
+              🚨 <b><u>CRITICAL ALERT</u></b> 🚨
+
+              {{ range .Alerts }}
+              🔥 <b>{{ .Annotations.summary }}</b>
+
+              📛 <b>Description:</b> <i>{{ .Annotations.description }}</i>
+              🧩 <b>Cluster:</b> {{ or .Labels.cluster "unknown" }}
+              📦 <b>Namespace:</b> {{ or .Labels.namespace "unknown" }}
+              ⚙️ <b>Service:</b> {{ or .Labels.service (or .Labels.job "unknown") }}
+
+              <b>🏷 Labels:</b>
+              {{ range .Labels.SortedPairs }}
+              • <code>{{ .Name }}={{ .Value }}</code>
+              {{ end }}
+
+              {{ end }}
+            send_resolved: true
+
+      - name: 'telegram-warning'
+        telegram_configs:
+          - bot_token: '8569699896:AAH7oO91jt9i1F-63P5CUfq1RZ1U7VKnsZc'
+            chat_id: -1003410212815
+            parse_mode: 'HTML'
+            message: |
+              ⚠️ <b>WARNING ALERT</b>
+
+              {{ range .Alerts }}
+              ⚠️ <b>{{ .Annotations.summary }}</b>
+              📝 <b>Description:</b> {{ .Annotations.description }}
+
+              <b>🏷 Labels:</b>
+              {{ range .Labels.SortedPairs }}
+              • <code>{{ .Name }}={{ .Value }}</code>
+              {{ end }}
+
+              {{ end }}
+            send_resolved: true
+
+      - name: 'null'
+
+    inhibit_rules:
+      - source_matchers:
+          - 'severity = critical'
+        target_matchers:
+          - 'severity =~ warning|info'
+        equal: ['namespace', 'alertname']
+
+      - source_matchers:
+          - 'severity = warning'
+        target_matchers:
+          - 'severity = info'
+        equal: ['namespace', 'alertname']
+
+
+prometheus:
+  prometheusSpec:
+    hostNetwork: true
+    dnsPolicy: ClusterFirstWithHostNet
+
+    tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+
+    nodeSelector:
+      node-role.kubernetes.io/control-plane: ""
+
+    secrets:
+      - kube-controlplane-metrics-certs
+      - prometheus-additional-scrape-configs
+
+    additionalScrapeConfigsSecret:
+      enabled: true
+      name: prometheus-additional-scrape-configs
+      key: secret.yaml
+
+
+kubeEtcd:
+  serviceMonitor:
+    enabled: false
+
+kubeControllerManager:
+  serviceMonitor:
+    enabled: false
+
+kubeScheduler:
+  serviceMonitor:
+    enabled: false
+
+kubeProxy:
+  serviceMonitor:
+    enabled: false

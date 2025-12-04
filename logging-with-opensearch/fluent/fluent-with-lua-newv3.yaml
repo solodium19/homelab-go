@@ -1,0 +1,194 @@
+
+image:
+  repository: cr.fluentbit.io/fluent/fluent-bit
+  tag: 3.1.8
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: fluent-bit
+
+rbac:
+  create: true
+  nodeAccess: true
+
+daemonset:
+  enabled: true
+  updateStrategy:
+    type: RollingUpdate
+
+tolerations:
+ - operator: Exists
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 300Mi
+  requests:
+    cpu: 100m
+    memory: 150Mi
+
+volumes:
+  - name: varlibdockercontainers
+    hostPath:
+      path: /var/log/containers
+  - name: varlibdockerpods
+    hostPath:
+      path: /var/log/pods
+  - name: varrun
+    hostPath:
+      path: /var/run
+
+volumeMounts:
+  - name: varlibdockercontainers
+    mountPath: /var/log/containers
+    readOnly: true
+  - name: varlibdockerpods
+    mountPath: /var/log/pods
+    readOnly: true
+  - name: varrun
+    mountPath: /var/run
+    readOnly: true
+
+# =====================================================================
+# CONFIG
+# =====================================================================
+config:
+  service: |
+    [SERVICE]
+        Flush 1
+        Log_Level info
+        Parsers_File parsers.conf
+        HTTP_Server On
+        HTTP_Listen 0.0.0.0
+        HTTP_Port 2020
+
+  # =====================================================================
+  # INPUTS
+  # =====================================================================
+  inputs: |
+    # Container logs
+    [INPUT]
+        Name              tail
+        Path              /var/log/containers/*.log
+        Tag               kube.*
+        Parser            containerd
+        Mem_Buf_Limit     50MB
+        Skip_Long_Lines   On
+        Refresh_Interval  5
+        Docker_Mode       On
+        Docker_Mode_Parser  docker_multiline
+
+    # Host logs
+    [INPUT]
+        Name systemd
+        Tag host.*
+        Systemd_Filter _SYSTEMD_UNIT=kubelet.service
+        Read_From_Tail On
+
+  # =====================================================================
+  # FILTERS
+  # =====================================================================
+  filters: |
+    # Add Kubernetes metadata
+    [FILTER]
+        Name kubernetes
+        Match kube.*
+        Merge_Log On
+        Keep_Log Off
+
+    # RUN LUA (log level detection)
+    [FILTER]
+        Name   lua
+        Match  kube.*
+        script /fluent-bit/scripts/loglevel.lua
+        call   detect_level
+
+    [FILTER]
+        Name modify
+        Match *
+        Add cluster_name my-single-node-cluster
+        Add environment prod
+
+  # =====================================================================
+  # OUTPUTS → OpenSearch
+  # =====================================================================
+  outputs: |
+    [OUTPUT]
+        Name opensearch
+        Match kube.*
+        Host opensearch-cluster-single
+        Port 9200
+        Index kube-logs
+        Suppress_Type_Name On
+        Replace_Dots On
+        TLS On
+        TLS.Verify Off
+        HTTP_User admin
+        HTTP_Passwd Vladik.20041
+
+    [OUTPUT]
+        Name opensearch
+        Match host.*
+        Host opensearch-cluster-single
+        Port 9200
+        Index host-logs
+        Replace_Dots On
+        Suppress_Type_Name On
+        TLS On
+        TLS.Verify Off
+        HTTP_User admin
+        HTTP_Passwd Vladik.20041
+
+  # =====================================================================
+  # PARSERS
+  # =====================================================================
+  customParsers: |
+    # Default container parser
+    [PARSER]
+        Name containerd
+        Format regex
+        Regex ^(?<time>[^ ]*) (?<stream>stdout|stderr) (?<log>.*)$
+        Time_Key time
+        Time_Format %Y-%m-%dT%H:%M:%S.%LZ
+
+    # Multiline support for docker logs
+    [MULTILINE_PARSER]
+        Name docker_multiline
+        Type regex
+        Flush_Timeout 2000
+        Rule "start_state"   "/^(INFO|WARN|ERROR|DEBUG|TRACE|FATAL)/"  "cont"
+        Rule "cont"          "/.*/"                                    "cont"
+
+# =====================================================================
+# LUA SCRIPT
+# =====================================================================
+luaScripts:
+  loglevel.lua: |
+    function detect_level(tag, ts, record)
+
+        -- 1) Если уровень уже есть — не трогаем
+        if record["level"] ~= nil then
+            return 1, ts, record
+        end
+
+        local msg = string.lower(record["log"] or "")
+
+        -- 2) Чёткие регексы по слову, а не по подстроке
+        if string.match(msg, "%f[%a]error%f[%A]") then
+            record["level"] = "error"
+        elseif string.match(msg, "%f[%a]warn%f[%A]") or string.match(msg, "%f[%a]warning%f[%A]") then
+            record["level"] = "warn"
+        elseif string.match(msg, "%f[%a]info%f[%A]") then
+            record["level"] = "info"
+        elseif string.match(msg, "%f[%a]debug%f[%A]") then
+            record["level"] = "debug"
+        elseif string.match(msg, "%f[%a]trace%f[%A]") then
+            record["level"] = "trace"
+        else
+            -- 3) дефолт если ничего не найдено
+            record["level"] = "info"
+        end
+
+        return 1, ts, record
+    end

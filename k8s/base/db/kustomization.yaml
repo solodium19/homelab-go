@@ -1,3 +1,0 @@
-resources:
- - postgres-pod.yml
- - postgres-service.yml
