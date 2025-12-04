@@ -1,4 +1,4 @@
 include:
   - project: solodium191/homelab-go
     ref: ci-pipelines
-    file: /.gitlab-ci/develop.yml
+    file: /.gitlab-ci/stage.yml
