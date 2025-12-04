@@ -1,0 +1,40 @@
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: always
+    - when: never
+
+stages:
+  - promote_prod
+
+promote_to_prod:
+  stage: promote_prod
+  tags: [test]
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache git curl bash
+    - curl -s https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh | bash
+    - mv kustomize /usr/local/bin/
+    - git config --global user.email "ci@gitlab.com"
+    - git config --global user.name "GitLab CI"
+
+  script:
+    - 'git clone --branch k8s-manifests "https://oauth2:${GITLAB_TOKEN}@gitlab.com/solodium191/homelab-go.git" manifests'
+    - 'cd manifests'
+    - 'VOTE_TAG=$(grep -A2 "name: .*vote" k8s/overlays/stage/kustomization.yaml | grep newTag | awk "{print \$2}")'
+    - 'RESULT_TAG=$(grep -A2 "name: .*result" k8s/overlays/stage/kustomization.yaml | grep newTag | awk "{print \$2}")'
+    - 'WORKER_TAG=$(grep -A2 "name: .*worker" k8s/overlays/stage/kustomization.yaml | grep newTag | awk "{print \$2}")'
+    - 'echo "Vote tag: $VOTE_TAG"'
+    - 'echo "Result tag: $RESULT_TAG"'
+    - 'echo "Worker tag: $WORKER_TAG"'
+    - 'cd k8s/overlays/prod'
+    - 'kustomize edit set image registry.gitlab.com/solodium191/homelab-go/vote=registry.gitlab.com/solodium191/homelab-go/vote:${VOTE_TAG}'
+    - 'kustomize edit set image registry.gitlab.com/solodium191/homelab-go/result=registry.gitlab.com/solodium191/homelab-go/result:${RESULT_TAG}'
+    - 'kustomize edit set image registry.gitlab.com/solodium191/homelab-go/worker=registry.gitlab.com/solodium191/homelab-go/worker:${WORKER_TAG}'
+    - 'cd ../../..'
+    - 'git add k8s/overlays/prod/kustomization.yaml'
+    - 'git commit -m "Sync images from stage → prod" || echo "Nothing to commit"'
+    - 'git push origin k8s-manifests'
+
+
+    ###### Стоит пока как заглушка / дорабатывается

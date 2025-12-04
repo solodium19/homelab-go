@@ -1,0 +1,128 @@
+stages:
+  - build
+  - update-manifests
+
+.build_template: &build_template
+  stage: build
+  tags: [test]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.0-debug
+    entrypoint: [""]
+  artifacts:
+    reports:
+      dotenv: build.env
+
+
+build_vote:
+  <<: *build_template
+  rules:
+  - changes:
+      - vote/**/*
+    when: on_success
+  - when: never
+  script:
+    - echo "SERVICE=vote" >> build.env
+    - echo "IMAGE_TAG=$CI_COMMIT_SHA" >> build.env
+    - echo "IMAGE_REPO=$CI_REGISTRY_IMAGE/vote" >> build.env
+
+    - >
+      /kaniko/executor
+      --context "$CI_PROJECT_DIR/vote"
+      --dockerfile "$CI_PROJECT_DIR/vote/Dockerfile"
+      --destination "$CI_REGISTRY_IMAGE/vote:$CI_COMMIT_SHA"
+      --destination "$CI_REGISTRY_IMAGE/vote:latest"
+      --cache=true
+      --cache-repo "$CI_REGISTRY_IMAGE/cache"
+
+
+build_result:
+  <<: *build_template
+  rules:
+    - changes:
+        - result/**/*
+    - when: never
+  script:
+    - echo "SERVICE=result" >> build.env
+    - echo "IMAGE_TAG=$CI_COMMIT_SHA" >> build.env
+    - echo "IMAGE_REPO=$CI_REGISTRY_IMAGE/result" >> build.env
+
+    - >
+      /kaniko/executor
+      --context "$CI_PROJECT_DIR/result"
+      --dockerfile "$CI_PROJECT_DIR/result/Dockerfile"
+      --destination "$CI_REGISTRY_IMAGE/result:$CI_COMMIT_SHA"
+      --destination "$CI_REGISTRY_IMAGE/result:latest"
+      --cache=true
+      --cache-repo "$CI_REGISTRY_IMAGE/cache"
+
+
+build_worker:
+  <<: *build_template
+  rules:
+    - changes:
+        - worker/**/*
+    - when: never
+  script:
+    - echo "SERVICE=worker" >> build.env
+    - echo "IMAGE_TAG=$CI_COMMIT_SHA" >> build.env
+    - echo "IMAGE_REPO=$CI_REGISTRY_IMAGE/worker" >> build.env
+
+    - >
+      /kaniko/executor
+      --context "$CI_PROJECT_DIR/worker"
+      --dockerfile "$CI_PROJECT_DIR/worker/Dockerfile"
+      --destination "$CI_REGISTRY_IMAGE/worker:$CI_COMMIT_SHA"
+      --destination "$CI_REGISTRY_IMAGE/worker:latest"
+      --cache=true
+      --cache-repo "$CI_REGISTRY_IMAGE/cache"
+
+
+.update_template: &update_template
+  stage: update-manifests
+  tags: [test]
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache git curl bash
+    - curl -s https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh | bash
+    - mv kustomize /usr/local/bin/
+    - git config --global user.email "ci@gitlab.com"
+    - git config --global user.name "GitLab CI"
+
+  script:
+    - git clone --branch k8s-manifests "https://oauth2:${GITLAB_TOKEN}@gitlab.com/solodium191/homelab-go.git" manifests
+    - cd manifests/k8s/overlays/develop
+    - kustomize edit set image "${IMAGE_REPO}=${IMAGE_REPO}:${IMAGE_TAG}"
+    - git add .
+    - git commit -m "Update image for ${SERVICE} to ${IMAGE_TAG}" || echo "Nothing to commit"
+    - git push origin k8s-manifests
+
+
+update_vote:
+  <<: *update_template
+  needs:
+    - job: build_vote
+      artifacts: true
+  rules:
+    - changes:
+        - vote/**/*
+    - when: never
+
+update_result:
+  <<: *update_template
+  needs:
+    - job: build_result
+      artifacts: true
+  rules:
+    - changes:
+        - result/**/*
+    - when: never
+
+update_worker:
+  <<: *update_template
+  needs:
+    - job: build_worker
+      artifacts: true
+  rules:
+    - changes:
+        - worker/**/*
+    - when: never
