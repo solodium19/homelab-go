@@ -1,1 +1,32 @@
-### Дорабатывается
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prod
+
+resources:
+- ../../base/vote
+- ../../base/result
+- ../../base/worker
+- ../../base/db
+- ../../base/redis
+
+images:
+- name: registry.gitlab.com/solodium191/homelab-go/result
+  newName: registry.gitlab.com/solodium191/homelab-go/result
+  newTag: latest
+- name: registry.gitlab.com/solodium191/homelab-go/vote
+  newName: registry.gitlab.com/solodium191/homelab-go/vote
+  newTag: latest
+- name: registry.gitlab.com/solodium191/homelab-go/worker
+  newName: registry.gitlab.com/solodium191/homelab-go/worker
+  newTag: latest
+
+patches:
+- path: voteapp-patch.yaml
+  target:
+    kind: Deployment
+    name: voting-app-deployment
+- path: resultapp-patch.yaml
+  target:
+    kind: Deployment
+    name: result-app-deployment
