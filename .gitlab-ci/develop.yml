@@ -1,4 +1,12 @@
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH != "develop"'
+      when: never
+    - when: always
+
 stages:
+  - promote_prod
+  - promote_stage
   - build
   - update-manifests
 
@@ -19,7 +27,6 @@ build_vote:
   - changes:
       - vote/**/*
     when: on_success
-  - when: never
   script:
     - echo "SERVICE=vote" >> build.env
     - echo "IMAGE_TAG=$CI_COMMIT_SHA" >> build.env
@@ -40,7 +47,6 @@ build_result:
   rules:
     - changes:
         - result/**/*
-    - when: never
   script:
     - echo "SERVICE=result" >> build.env
     - echo "IMAGE_TAG=$CI_COMMIT_SHA" >> build.env
@@ -61,7 +67,6 @@ build_worker:
   rules:
     - changes:
         - worker/**/*
-    - when: never
   script:
     - echo "SERVICE=worker" >> build.env
     - echo "IMAGE_TAG=$CI_COMMIT_SHA" >> build.env
@@ -105,7 +110,6 @@ update_vote:
   rules:
     - changes:
         - vote/**/*
-    - when: never
 
 update_result:
   <<: *update_template
@@ -115,7 +119,6 @@ update_result:
   rules:
     - changes:
         - result/**/*
-    - when: never
 
 update_worker:
   <<: *update_template
@@ -125,4 +128,3 @@ update_worker:
   rules:
     - changes:
         - worker/**/*
-    - when: never

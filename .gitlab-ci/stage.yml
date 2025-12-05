@@ -1,14 +1,17 @@
 workflow:
   rules:
-    - if: '$CI_COMMIT_BRANCH == "stage"'
-      when: always
-    - when: never
+    - if: '$CI_COMMIT_BRANCH != "stage"'
+      when: never
+    - when: always
 
 stages:
-  - promote
+  - promote_prod
+  - promote_stage
+  - build
+  - update-manifests
 
 promote_to_stage:
-  stage: promote
+  stage: promote_stage
   tags: [test]
   image: alpine:latest
   before_script:
