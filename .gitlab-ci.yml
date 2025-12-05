@@ -1,0 +1,18 @@
+include:
+  - project: solodium191/homelab-go
+    ref: ci-pipelines
+    file: /.gitlab-ci/develop.yml
+    rules:
+     - if: '$CI_COMMIT_BRANCH == "develop"'
+
+  - project: solodium191/homelab-go
+    ref: ci-pipelines
+    file: /.gitlab-ci/stage.yml
+    rules:
+     - if: '$CI_COMMIT_BRANCH == "stage"'
+
+  - project: solodium191/homelab-go
+    ref: ci-pipelines
+    file: /.gitlab-ci/prod.yml
+    rules:
+     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
