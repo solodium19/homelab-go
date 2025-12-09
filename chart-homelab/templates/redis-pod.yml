@@ -2,7 +2,8 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: redis-pod
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.redis.name }}
   labels:
     env: {{ .Values.namespace }}
     name: redis-pod-{{ .Values.namespace }}

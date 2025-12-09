@@ -1,6 +1,7 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  namespace: {{ .Values.namespace }}
   name: {{ .Values.db.name }}
   labels:
     env: {{ .Values.namespace }}

@@ -30,4 +30,6 @@ spec:
      image: {{ .Values.vote.spec.image }}:{{ .Values.vote.spec.imageTag }}
      ports:
      - containerPort: 80
- 
+     {{- if .Values.vote.spec.resources }}
+     {{- toYaml .Values.vote.spec.resources | nindent 6 }}
+     {{- end }}

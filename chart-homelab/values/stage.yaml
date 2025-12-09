@@ -1,0 +1,94 @@
+namespace: stage
+global:
+  imagePullSecrets:
+    - name: gitlab-regcred
+  security:
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1001
+      fsGroup: 1001
+      allowPrivilegeEscalation: false
+      seccompProfile:
+       type: RuntimeDefault
+
+
+vote: 
+  name: vote-stage
+  replicas: 2
+  spec:
+    image: registry.gitlab.com/solodium191/homelab-go/vote
+    imageTag: latest
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "300m"
+        memory: "256Mi"
+  service:
+    name: vote-service
+    port: 80
+    targetPort: 80
+    type: ClusterIP
+
+result:
+  name: result-stage
+  replicas: 2
+  spec:
+    image: registry.gitlab.com/solodium191/homelab-go/result
+    imageTag: latest
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "300m"
+        memory: "256Mi"
+  service:
+    name: result-service
+    port: 80
+    targetPort: 80
+    type: ClusterIP
+
+
+worker:
+  name: worker-stage
+  replicas: 2
+  spec:
+    image: registry.gitlab.com/solodium191/homelab-go/worker
+    imageTag: latest
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "300m"
+        memory: "256Mi"
+
+redis: 
+  enabled: false
+  name: redis-stage
+
+db:
+  name: postgres-stage
+  servicename: postgres-dev-svc
+  replicas: 1
+  storageClassName: local-storage
+  storage: 5Gi
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    fsGroup: 999
+    allowPrivilegeEscalation: false
+    seccompProfile:
+      type: RuntimeDefault
+  secret:
+    name: postgres-secret
+    user: postgres
+    password: postgres
+
+pvbd:
+  enabled: true # Используем это только для девелоп окружения в нашем случае, у нас сторажкласса нет, поэтому PV придётся создать руками, если есть Storageclass просто ставим false
+  name: postgres-pv
+  path: /mnt/data/postgres
+

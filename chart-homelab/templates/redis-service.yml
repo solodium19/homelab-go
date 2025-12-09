@@ -2,6 +2,7 @@
 apiVersion: v1
 kind: Service
 metadata:
+  namespace: {{ .Values.namespace }}
   name: {{ .Values.redis.name }}-svc
   labels:
     env: {{ .Values.namespace }}

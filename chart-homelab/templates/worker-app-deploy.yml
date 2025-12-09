@@ -11,6 +11,7 @@ spec:
  replicas: {{ .Values.worker.replicas }}
  selector:
   matchLabels:
+   env: {{ .Values.namespace }}
    name: worker-app-pod-{{ .Values.namespace }}
  template:
   metadata:
@@ -21,11 +22,14 @@ spec:
     {{- include "common_labels" . | indent 4 }}
   spec:
    {{- if .Values.global.imagePullSecrets }}
-   imagePullSecrets:
-     {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+    imagePullSecrets:
+     {{- toYaml .Values.global.imagePullSecrets | nindent 4 }}
    {{- end }}
     containers:
     - name: {{ .Values.worker.name }}
       image: {{ .Values.worker.spec.image }}:{{ .Values.worker.spec.imageTag }}
       ports:
       - containerPort: 80
+      {{- if .Values.worker.spec.resources }}
+      {{- toYaml .Values.worker.spec.resources | nindent 6 }}
+      {{- end }}

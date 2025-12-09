@@ -19,8 +19,11 @@ spec:
       labels:
         env: {{ .Values.namespace }}
         name: result-app-pod-{{ .Values.namespace }}
-        {{- include "common_labels" . | indent 6 }}
+        {{- include "common_labels" . | indent 8 }}
     spec:
+      {{- if .Values.global.security }}
+      {{- toYaml .Values.global.security | nindent 4 }}
+      {{- end }}
       {{- if .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
@@ -30,3 +33,6 @@ spec:
         image: {{ .Values.result.spec.image }}:{{ .Values.result.spec.imageTag }}
         ports:
         - containerPort: 80
+        {{- if .Values.result.spec.resources }}
+        {{- toYaml .Values.result.spec.resources | nindent 8 }}
+        {{- end }}

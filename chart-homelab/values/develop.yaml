@@ -34,13 +34,6 @@ worker:
   spec:
     image: registry.gitlab.com/solodium191/homelab-go/worker
     imageTag: latest
-    resources:
-      requests:
-        cpu: "100m"
-        memory: "128Mi"
-      limits:
-        cpu: "300m"
-        memory: "256Mi"
 
 redis: 
   enabled: false
