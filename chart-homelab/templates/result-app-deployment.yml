@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.result.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    env: {{ .Values.namespace }}
+    name: result-app-deployment-{{ .Values.namespace }}
+    {{- include "common_labels" . | indent 4 }}
+spec:
+  replicas: {{ .Values.result.replicas }}
+  selector:
+    matchLabels:
+      env: {{ .Values.namespace }}
+      name: result-app-pod-{{ .Values.namespace }}
+  template:
+    metadata:
+      name: {{ .Values.result.name }}
+      labels:
+        env: {{ .Values.namespace }}
+        name: result-app-pod-{{ .Values.namespace }}
+        {{- include "common_labels" . | indent 6 }}
+    spec:
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ .Values.result.name }}
+        image: {{ .Values.result.spec.image }}:{{ .Values.result.spec.imageTag }}
+        ports:
+        - containerPort: 80

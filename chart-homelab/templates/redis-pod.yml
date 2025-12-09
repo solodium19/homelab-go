@@ -1,0 +1,16 @@
+{{- if .Values.redis.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: redis-pod
+  labels:
+    env: {{ .Values.namespace }}
+    name: redis-pod-{{ .Values.namespace }}
+{{- include "common_labels" . | indent 4 }}
+spec:
+  containers:
+  - name: redis
+    image: redis:latest
+    ports:
+     - containerPort: 6379
+{{- end }}

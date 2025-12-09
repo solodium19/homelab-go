@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.vote.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    env: {{ .Values.namespace }}
+    name: voting-app-deployment-{{ .Values.namespace }}
+    {{- include "common_labels" . | indent 4 }}
+spec:
+ replicas: {{ .Values.vote.replicas }}
+ selector:
+  matchLabels:
+   env: {{ .Values.namespace }}
+   name: voting-app-pod-{{ .Values.namespace }}
+ template:
+  metadata:
+   name: {{ .Values.vote.name }}
+   labels:
+    env: {{ .Values.namespace }}
+    name: voting-app-pod-{{ .Values.namespace }}
+    {{- include "common_labels" . | indent 4 }}
+  spec:
+   {{- if .Values.global.imagePullSecrets }}
+   imagePullSecrets:
+     {{- toYaml .Values.global.imagePullSecrets | nindent 6 }}
+   {{- end }}
+   containers:
+   - name: {{ .Values.vote.name }}
+     image: {{ .Values.vote.spec.image }}:{{ .Values.vote.spec.imageTag }}
+     ports:
+     - containerPort: 80
+ 

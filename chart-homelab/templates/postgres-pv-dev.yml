@@ -1,0 +1,18 @@
+{{- if or (.Values.pvbd.enabled) (eq .Values.db.storageClassName "local-storage") }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Values.pvbd.name }}
+  labels:
+    env: {{ .Values.namespace }}
+    name: postgres-{{ .Values.namespace }}
+    {{- include "common_labels" . | indent 4 }}
+spec:
+  capacity:
+    storage: {{ .Values.db.storage }}
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.db.storageClassName }}
+  hostPath:
+    path: {{ .Values.pvbd.path }}
+{{- end }}

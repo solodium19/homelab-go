@@ -1,0 +1,18 @@
+{{- if .Values.redis.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.redis.name }}-svc
+  labels:
+    env: {{ .Values.namespace }}
+    name: redis-service-{{ .Values.namespace }}
+{{- include "common_labels" . | indent 4 }}
+spec:
+  ports:
+  - port: 6379
+    name: {{ .Values.redis.name }}-port
+    targetPort: 6379
+  selector:
+     name: redis-pod-{{ .Values.namespace }}
+     env: {{ .Values.namespace }}
+{{- end }}
