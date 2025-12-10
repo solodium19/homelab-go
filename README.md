@@ -105,7 +105,7 @@ ArgoCD автоматически управляет всем состояние
 * Deployment / StatefulSet
 * ConfigMap / Secret
 * PVC / PV
-* Resources / probes / labels
+* Resources / labels ( Планируется добавить Readiness,Health probes)
 * Полная параметризация Values.yaml для отдельных огружений
 
 ---
@@ -170,4 +170,5 @@ ArgoCD автоматически управляет всем состояние
 * Telegram: **@solodium19**
 
 Проект активно развивается — буду рад фидбеку и предложениям для новых реализаций.
+
 
