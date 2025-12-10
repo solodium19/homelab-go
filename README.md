@@ -42,8 +42,8 @@ homelab-go/
 │   │   ├── ingress-controller/       # ingress-nginx, правила, конфигурации
 │   │   ├── kube-prometheus-stack/    # Мониторинг на kube-prometheus-stack
 │   │   ├── argoCD/                   # GitOps конфигурации
-│   │   └── logging-with-opensearch/  # Логирование
-|   |   └── gitlab-runner/            # Self-Hoster runner gitlab
+│   │   |── logging-with-opensearch/  # Логирование
+|   |   |── gitlab-runner/            # Self-Hoster runner gitlab
 |   |   └── cert-manager/             # Автоматизированная система сертификации
 │
 ├── develop/                  # Полноценное dev-окружение
@@ -170,3 +170,4 @@ ArgoCD автоматически управляет всем состояние
 * Telegram: **@solodium19**
 
 Проект активно развивается — буду рад фидбеку и предложениям для новых реализаций.
+
