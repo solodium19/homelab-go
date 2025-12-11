@@ -17,6 +17,8 @@ vote:
   spec:
     image: registry.gitlab.com/solodium191/homelab-go/vote
     imageTag: latest
+    probes:
+      enabled: false
     resources:
       requests:
         cpu: "100m"
@@ -36,6 +38,8 @@ result:
   spec:
     image: registry.gitlab.com/solodium191/homelab-go/result
     imageTag: latest
+    probes:
+      enabled: false
     resources:
       requests:
         cpu: "100m"
@@ -56,6 +60,8 @@ worker:
   spec:
     image: registry.gitlab.com/solodium191/homelab-go/worker
     imageTag: latest
+    probes:
+      enabled: false
     res:
       resources:
         requests:
@@ -68,6 +74,8 @@ worker:
 redis: 
   enabled: false
   name: redis-stage
+  probes:
+    enabled: false
 
 db:
   name: postgres-stage
@@ -86,6 +94,8 @@ db:
     name: postgres-secret
     user: postgres
     password: postgres
+  probes:
+    enabled: false
 
 pvbd:
   enabled: false # Используем это только для девелоп окружения в нашем случае, у нас сторажкласса нет, поэтому PV придётся создать руками, если есть Storageclass просто ставим false

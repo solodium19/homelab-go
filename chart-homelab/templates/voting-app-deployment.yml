@@ -34,3 +34,17 @@ spec:
      resources:
      {{- toYaml .Values.vote.spec.resources | nindent 7 }}
      {{- end }}
+     {{- if .Values.vote.spec.probes.enabled }}
+     livenessProbe:
+       tcpSocket:
+         port: {{ .Values.vote.spec.probes.port }}
+       initialDelaySeconds: 10
+       periodSeconds: 5
+       failureThreshold: 3
+     readinessProbe:
+       tcpSocket:
+         port: {{ .Values.vote.spec.probes.port }}
+       initialDelaySeconds: 5
+       periodSeconds: 5
+       failureThreshold: 3
+     {{- end}}

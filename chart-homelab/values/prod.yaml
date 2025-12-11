@@ -1,10 +1,9 @@
-namespace: stage
+namespace: prod
 global:
   imagePullSecrets:
     - name: gitlab-regcred
   security:
     securityContext:
-      runAsNonRoot: true
       runAsUser: 1001
       fsGroup: 1001
       allowPrivilegeEscalation: false
@@ -14,7 +13,7 @@ global:
 
 vote: 
   name: vote-stage
-  replicas: 2
+  replicas: 4
   spec:
     image: registry.gitlab.com/solodium191/homelab-go/vote
     imageTag: latest
@@ -25,6 +24,9 @@ vote:
       limits:
         cpu: "300m"
         memory: "256Mi"
+    probes:
+      enabled: true
+      port: 80
   service:
     name: vote-service
     port: 80
@@ -33,7 +35,7 @@ vote:
 
 result:
   name: result-stage
-  replicas: 2
+  replicas: 4
   spec:
     image: registry.gitlab.com/solodium191/homelab-go/result
     imageTag: latest
@@ -44,6 +46,9 @@ result:
       limits:
         cpu: "300m"
         memory: "256Mi"
+    probes:
+      enabled: true
+      port: 80
   service:
     name: result-service
     port: 80
@@ -53,7 +58,7 @@ result:
 
 worker:
   name: worker-stage
-  replicas: 2
+  replicas: 4
   spec:
     image: registry.gitlab.com/solodium191/homelab-go/worker
     imageTag: latest
@@ -68,6 +73,9 @@ worker:
 redis: 
   enabled: true
   name: redis-stage
+  probes:
+   enabled: true
+   port: 6379
 
 db:
   name: postgres-stage
@@ -86,6 +94,9 @@ db:
     name: postgres-secret
     user: postgres
     password: postgres
+  probes:
+    enabled: true
+    port: 5432 
 
 pvbd:
   enabled: false # Используем это только для девелоп/stage окружения в нашем случае, у нас сторажкласса нет, поэтому PV придётся создать руками, если есть Storageclass просто ставим false

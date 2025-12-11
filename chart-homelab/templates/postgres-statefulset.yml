@@ -40,6 +40,20 @@ spec:
             runAsNonRoot: true
           ports:
             - containerPort: 5432
+          {{- if .Values.db.probes.enabled }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.db.probes.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.db.probes.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          {{- end}}
           env:
             - name: POSTGRES_HOST_AUTH_METHOD
               value: trust
