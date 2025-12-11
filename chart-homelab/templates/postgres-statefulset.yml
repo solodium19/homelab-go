@@ -21,9 +21,23 @@ spec:
         env: {{ .Values.namespace }}
         {{- include "common_labels" . | indent 8 }}
     spec:
+      {{- if .Values.db.security }}
+      {{- toYaml .Values.db.security | nindent 6 }}
+      {{- end }}
+      initContainers:
+        - name: fix-permissions
+          image: busybox
+          securityContext:
+            runAsUser: 0
+          command: ["sh", "-c", "chown -R 999:999 /var/lib/postgresql/18/docker"]
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/18/docker
       containers:
         - name: {{ .Values.db.name }}
           image: postgres
+          securityContext:
+            runAsNonRoot: true
           ports:
             - containerPort: 5432
           env:
@@ -41,7 +55,7 @@ spec:
                   key: POSTGRES_PASSWORD
           volumeMounts:
             - name: postgres-data
-              mountPath: /var/lib/postgresql/data
+              mountPath: /var/lib/postgresql/18/docker
   volumeClaimTemplates:
     - metadata:
         name: postgres-data

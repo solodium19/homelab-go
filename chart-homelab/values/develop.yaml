@@ -43,7 +43,7 @@ db:
   name: postgres-dev
   servicename: postgres-dev-svc
   replicas: 1
-  storageClassName: local-storage
+  storageClassName: local-storage # Меняем в prod
   storage: 5Gi
   secret:
     name: postgres-secret

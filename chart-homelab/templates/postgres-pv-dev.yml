@@ -15,4 +15,5 @@ spec:
   storageClassName: {{ .Values.db.storageClassName }}
   hostPath:
     path: {{ .Values.pvbd.path }}
+    type: DirectoryOrCreate
 {{- end }}

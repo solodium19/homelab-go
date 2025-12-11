@@ -7,6 +7,7 @@ global:
       runAsNonRoot: true
       runAsUser: 1001
       fsGroup: 1001
+      allowPrivilegeEscalation: false
       seccompProfile:
        type: RuntimeDefault
 
@@ -56,30 +57,29 @@ worker:
   spec:
     image: registry.gitlab.com/solodium191/homelab-go/worker
     imageTag: latest
-    res:
-      resources:
-        requests:
-          cpu: "100m"
-          memory: "128Mi"
-        limits:
-          cpu: "300m"
-          memory: "256Mi"
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "300m"
+        memory: "256Mi"
 
 redis: 
-  enabled: false
+  enabled: true
   name: redis-stage
 
 db:
   name: postgres-stage
   servicename: postgres-dev-svc
   replicas: 1
-  storageClassName: local-path # Меняем в prod/ По хорошему даже в stage, но пока имеем что имеем и оставляем как есть \ раньше стоял local-storage, заменили на local-path( возможности размещения в облаке пока нет, но лучше всего облачное хранилище)
-  storage: 3Gi
+  storageClassName: local-path
+  storage: 25Gi
   security:
     securityContext:
-      runAsGroup: 999
       runAsUser: 999
       fsGroup: 999
+      allowPrivilegeEscalation: false
       seccompProfile:
         type: RuntimeDefault
   secret:
@@ -88,6 +88,7 @@ db:
     password: postgres
 
 pvbd:
-  enabled: false # Используем это только для девелоп окружения в нашем случае, у нас сторажкласса нет, поэтому PV придётся создать руками, если есть Storageclass просто ставим false
+  enabled: false # Используем это только для девелоп/stage окружения в нашем случае, у нас сторажкласса нет, поэтому PV придётся создать руками, если есть Storageclass просто ставим false
   name: postgres-pv
   path: /mnt/data/postgres
+

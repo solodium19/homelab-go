@@ -22,7 +22,7 @@ spec:
         {{- include "common_labels" . | indent 8 }}
     spec:
       {{- if .Values.global.security }}
-      {{- toYaml .Values.global.security | nindent 4 }}
+      {{- toYaml .Values.global.security | nindent 6 }}
       {{- end }}
       {{- if .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -34,5 +34,6 @@ spec:
         ports:
         - containerPort: 80
         {{- if .Values.result.spec.resources }}
-        {{- toYaml .Values.result.spec.resources | nindent 8 }}
+        resources:
+        {{- toYaml .Values.result.spec.resources | nindent 10 }}
         {{- end }}
