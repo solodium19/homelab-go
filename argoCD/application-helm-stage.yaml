@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: homelab-go-stage
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://gitlab.com/solodium191/homelab-go.git
+    targetRevision: k8s-manifests 
+    path: chart-homelab             
+    helm:
+      valueFiles:
+        - values/stage.yaml    
+      releaseName: stage-homelab
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: stage        
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
