@@ -3,12 +3,12 @@ apiVersion: bitnami.com/v1alpha1
 kind: SealedSecret
 metadata:
   name: gitlab-regcred
-  namespace: stage
+  namespace: {{ .Values.namespace }}
 spec:
   encryptedData:
     .dockerconfigjson: AgAY+y2io8osGwaqQZJdXXbCJUpwzXWJau3A5WV7SOFCNE5ElmQNO6SdDIGYwFz91dd6Lc9N6046VZRB2tnCTExV1WM88HsLOtrXf5g37anG+F8JTzyau94xllSmGDKL+mNTY7N14ylatS+eiRovb/x+tHwvgWsT0zpemNZxRka3uWSqnO3b0Ks2GbtaQJ8DKMQrQeJveIiBsY/jiFAbAezCS3GL7gsmhwXdVS6zskJTvD0L/ePow4+K0hcVbusliwyG1V1tdn3szedx8hbj1BIrgm7AwTzQQkdEFByUOBM5uiod+uMzIM/KAqsilDy9B4ZirunOKG3hWBnikspAQjP0wpVDgm6gR1PIqvfMXXPpds+E+W+5bvd/5aQbXSQlboZs1s1YQkIbJFb1A8OxSpNeh3NHQcxnXTOSzUj60trpVdg4bdT2aaQuXojmgg/W+/lRgk6tYvsxUVGnm+ekTBJRDnbHKkVl2NvYq2A2fLPAG3U2263nYRdTDPWrQ5sx3hI7Oc1IjtWPdN14RIO2uuMQ04yMGy00Ivr75eVmFVSjV5z8SQnhz7oaED7wrw03gUDjlemvlrjNzNrbNd+8NTr8oNVqGF88pC6YovwAUaL0jjGgnOV+adQo0Sv9WsWP03tcjvWoDB24+ECwSt6If4eAy+FyW3stNMe+khY2pf6W64gfeiZiVfev0awwt1Rnwyw2IKWJtZtT3AvaA2Z0PgPyau8VYKFuan4sFLRz99go+xIU01PgRPM5BJqGggLwUf89B01lDCwNwtoqAmx5T2XJKw6aidoRN+R9MQ32YJzudwBiVDLgkeRwfxZZ+f5SfHO9hCi/qUdcSM2k6vXX0wwbuZt4qUgZbnfly2F4sarUUcRQubytc+cClK6IJlsEf/tRynfGdBdnUM7dIN7gNwx673hAZIwrNrqzWD0hjhAkjcxxOQi1lmIi+jA=
   template:
     metadata:
       name: gitlab-regcred
-      namespace: stage
+      namespace: {{ .Values.namespace }}
     type: kubernetes.io/dockerconfigjson

@@ -8,12 +8,16 @@ vote:
   replicas: 1
   spec:
     image: registry.gitlab.com/solodium191/homelab-go/vote
-    imageTag: latest
+    imageTag: 6caf5bfd01ebf02e68875321e18d37c2f66ca0a8
   service:
     name: vote-service
     port: 80
     targetPort: 80
     type: ClusterIP
+  ingress: 
+    enabled: true
+    name: vote-ingress-develop
+    hosts: vote-dev.local.test
 
 result:
   name: result-dev
@@ -26,14 +30,17 @@ result:
     port: 80
     targetPort: 80
     type: ClusterIP
-
+  ingress: 
+    enabled: true
+    name: vote-ingress-develop
+    hosts: vote-dev.local.test
 
 worker:
   name: worker-dev
   replicas: 1
   spec:
     image: registry.gitlab.com/solodium191/homelab-go/worker
-    imageTag: latest
+    imageTag: e240ae4b27d4be289d246426ac5f9e2184028635
 
 redis: 
   enabled: false

@@ -1,0 +1,27 @@
+{{- if .Values.vote.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.vote.ingress.name }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    cert-manager.io/cluster-issuer: "homelab-ca-issuer"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+spec:
+  tls:
+  - hosts:
+    - {{ .Values.vote.ingress.hosts }}
+    secretName: {{ .Values.vote.ingress.hosts }}
+  ingressClassName: nginx
+  rules:
+    - host: {{ .Values.vote.ingress.hosts }}
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: {{ .Values.vote.service.name }} 
+              port:
+                number: {{ .Values.vote.service.port }}
+{{- end }}
