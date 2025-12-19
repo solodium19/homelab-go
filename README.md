@@ -1,12 +1,15 @@
 ## Homelab Kubernetes Platform (Production‑like)
 
- Этот репозиторий содержит мою полностью развёрнутую **production‑like Kubernetes платформу**, построенную на bare‑metal кластере из 3 нод. Здесь собрана инфраструктура, CI/CD, GitOps, мониторинг, логирование, TLS, ingress‑слой, Helm‑чарты и окружения dev/stage/prod.
+Этот репозиторий содержит мою полностью развёрнутую production-like Kubernetes платформу.
+Изначально платформа была построена на bare-metal кластере из 3 нод, однако в рамках развития проекта инфраструктура была перенесена в Yandex Cloud с использованием подхода Infrastructure as Code (Terraform + Ansible).
 
- Проект создан как полноценная тренировка инженерных навыков DevOps — максимально приближенный к реальным продовым процессам.
+Здесь собрана инфраструктура, CI/CD, GitOps, мониторинг, логирование, TLS, ingress-слой, Helm-чарты и окружения dev/stage/prod.
+
+Проект создан как полноценная тренировка инженерных навыков DevOps — максимально приближенный к реальным продовым процессам.
 
 ---
 
-## 📌 Общая архитектура
+##  Общая архитектура
 
 Платформа состоит из следующих основных компонентов:
 
@@ -18,6 +21,7 @@
 * **Ingress NGINX + TLS (cert‑manager)**
 * **Monitoring stack**: kube‑prometheus‑stack, Grafana, Alertmanager
 * **Logging**: FluentBit → OpenSearch → OpenSearch Dashboards
+* **IaC** : Ansible+Terraform
 
 Пайплайн выглядит так:
 
@@ -44,7 +48,8 @@ homelab-go/
 │   │   ├── argoCD/                   # GitOps конфигурации
 │   │   |── logging-with-opensearch/  # Логирование
 |   |   |── gitlab-runner/            # Self-Hoster runner gitlab
-|   |   └── cert-manager/             # Автоматизированная система сертификации
+|   |   |── cert-manager/             # Автоматизированная система сертификации
+|   |   └── homelab-ansible-terraform/ # Автоматизация развертывания и настройки кластера
 │
 ├── develop/                  # Полноценное dev-окружение
 ├── stage/                    # stage-окружение
@@ -141,13 +146,36 @@ ArgoCD автоматически управляет всем состояние
 
 ---
 
-## 🔐 Безопасность
+##  Безопасность
 
 В проекте реализовано:
 
 * cert‑manager на своем сертификационном центре(нет необходимости в отдельном домене)
 * TLS для ingress
 * Kubernetes Secrets + зашифрованные секреты в Git
+---
+
+## Infrastructure as Code (Terraform + Ansible)
+
+Для управления инфраструктурой и автоматизации развёртывания используется связка Terraform + Ansible.
+
+Terraform:
+- создаёт облачную инфраструктуру в Yandex Cloud
+- поднимает VPC, Subnet и 3 Compute Instance (1 master, 2 worker)
+- вся конфигурация описана декларативно (main.tf, variables.tf, terraform.tfvars)
+
+Ansible:
+- устанавливает container runtime (containerd / Docker)
+- инициализирует Kubernetes через kubeadm
+- подключает worker-ноды
+- устанавливает CNI
+- разворачивает ArgoCD и GitOps Application
+
+Полный lifecycle развёртывания:
+
+Terraform → Cloud Infrastructure  
+Ansible → Kubernetes + ArgoCD  
+Git → Single Source of Truth
 
 ---
 
@@ -170,6 +198,7 @@ ArgoCD автоматически управляет всем состояние
 * Telegram: **@solodium19**
 
 Проект активно развивается — буду рад фидбеку и предложениям для новых реализаций.
+
 
 
 
