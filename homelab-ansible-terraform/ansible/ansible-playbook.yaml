@@ -1,0 +1,286 @@
+---
+-
+ name: Install Docker
+ hosts: all
+ become: yes
+ vars:
+  docker_packages:
+   - docker-ce
+   - docker-ce-cli
+   - containerd.io
+   - docker-buildx-plugin
+   - docker-compose-plugin
+
+ tasks:
+  - name: Creating Ubuntu dependencies
+    when: ansible_distribution == "Ubuntu"
+    block:
+      - name: install dependencies only for Ubuntu
+        apt:
+          name: "{{item}}"
+          state: present
+          update_cache: yes
+        loop:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg-agent
+          - software-properties-common
+          - git
+
+      - name: add GPG key
+        apt_key:
+          url: https://download.docker.com/linux/ubuntu/gpg
+          state: present
+
+      - name: add docker repository to apt Ubuntu
+        apt_repository:
+          repo: deb https://download.docker.com/linux/ubuntu bionic stable
+          state: present
+
+      - name: install docker Ubuntu
+        apt:
+         name: "{{docker_packages}}"
+         state: latest
+         update_cache: yes
+    rescue:
+      - debug:
+          msg: "Caught a error, check dependecies for Ubuntu"
+  
+  - name: Downloading docker in CentOS
+    when: ansible_distribution == "CentOS"
+    block:
+      - name: Add Docker repository to CentOS
+        yum_repository:
+         name: docker-ce-stable
+         description: Docker CE Stable - x86_64
+         baseurl: https://download.docker.com/linux/centos/7/x86_64/stable
+         gpgcheck: yes
+         gpgkey: https://download.docker.com/linux/centos/gpg
+         enabled: yes
+
+      - name: Install git
+        yum:
+         name: git
+         state: present
+
+      - name: install docker CentOS
+        yum:
+         name: "{{docker_packages}}"
+         state: latest
+         update_cache: yes
+    rescue:
+      - debug:
+          msg: "Caught a error, check dependecies for CentOS"
+
+
+
+- name: Install Kubernetes
+  hosts: all
+  become: yes
+  vars:
+    k8s_packages:
+      - kubelet
+      - kubeadm
+      - kubectl
+  tasks:
+    - name: Create keyrings directory
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download and dearmor Kubernetes key
+      get_url:
+        url: https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key
+        dest: /etc/apt/keyrings/kubernetes-apt-key.gpg
+
+    - name: Convert key to gpg format
+      command: gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /etc/apt/keyrings/kubernetes-apt-key.gpg
+      args:
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Add Kubernetes repo
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /"
+        state: present
+    - name: Update and upgrade apt
+      apt:
+        upgrade: yes
+        update_cache: yes
+        cache_valid_time: 86400
+    - name: Install Kubernetes packages
+      apt:
+        name: "{{k8s_packages}}"
+        state: latest
+        update_cache: yes
+
+- name: Fix containerd and swapoff
+  hosts: all
+  become: yes
+  tasks:
+    - name: Off swap 
+      command: swapoff -a 
+
+    - name: Disable SWAP in fstab
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+        replace: '# \1'    
+
+    - name: Create an empty file for K8S sysctl parameters
+      copy:
+        content: ""
+        dest: /etc/sysctl.d/99-kubernetes-cri.conf
+        force: no
+
+    - name: Configure sysctl parameters for K8S
+      lineinfile:
+        path: /etc/sysctl.d/99-kubernetes-cri.conf
+        line: "{{ item }}"
+      loop:
+        - "net.bridge.bridge-nf-call-iptables  = 1"
+        - "net.ipv4.ip_forward                 = 1"
+        - "net.bridge.bridge-nf-call-ip6tables = 1"
+
+    - name: Apply sysctl parameters
+      command: sysctl --system
+
+    - name: Create config containerd
+      command: containerd config default
+      register: containerd_config
+      args:
+        creates: /etc/containerd/config.toml
+
+    - name: Deploy containerd config
+      template:
+        src: containerd-config.toml.j2
+        dest: /etc/containerd/config.toml
+        owner: vladislav
+        group: vladislav
+        mode: '0644'
+
+    - name: Start containerd
+      service: name=containerd state=started daemon_reload=true enabled=yes
+
+    - name: Set bridge-nf-call-iptables
+      sysctl:
+        name: net.bridge.bridge-nf-call-iptables
+        value: 1
+
+    - name: Set ip_forward
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+
+    - name: Reboot
+      reboot:
+        reboot_timeout: 600
+
+    - name: Wait for node to be reachable
+      wait_for_connection:
+        timeout: 300
+
+- name: Initializing cluster
+  hosts: masters[0]
+  become: yes
+  tasks:
+    - name: Check if Kubernetes is already initialized
+      stat:
+        path: /etc/kubernetes/admin.conf
+      register: kubeadm_init
+    - name: Initializing
+      command: kubeadm init
+      args:
+        chdir: /home/vladislav
+      when: not kubeadm_init.stat.exists
+
+    - name: Create .kube directory
+      file:
+        path: /home/vladislav/.kube
+        state: directory
+        mode: 0755
+
+    - name: Copy admin.conf to User's kube config
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/vladislav/.kube/config
+        remote_src: yes
+        owner: vladislav
+        group: vladislav
+
+    - name: Install Pod Network
+      shell: kubectl apply -f https://reweave.azurewebsites.net/k8s/v1.33/net.yaml
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      when: not kubeadm_init.stat.exists
+
+- name: Configure Join Commands on Master Node
+  hosts: masters
+  become: yes
+  tasks:
+    - name: Retrieve Join Command
+      command: kubeadm token create --print-join-command
+      register: join_command
+      changed_when: false
+
+    - name: Set Join Command
+      set_fact:
+        join_command: "{{ join_command.stdout }}"
+
+- name: Join Worker Nodes
+  hosts: workers
+  become: yes
+  tasks:
+    - name: Check if kubelet.conf exists
+      stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: stat_result
+
+    - name: Enable TCP port 6443 (On Master) is able to connect from Worker
+      wait_for:
+        host: "{{ hostvars[groups['masters'][0]].ansible_host }}"
+        port: 6443
+        timeout: 10
+
+    - name: Join worker to cluster
+      shell: "{{ hostvars[groups['masters'][0]].join_command }}"
+      args:
+        chdir: /home/vladislav
+      when: not stat_result.stat.exists
+
+- name: Install ArgoCD
+  hosts: masters
+  become: yes
+  vars_files:
+    - vault.yml
+  tasks:
+    - name: Create current namespace
+      command: kubectl create namespace argocd
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+
+    - name: ArgoCD download in cluster
+      shell: kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+
+    - name: Clone private GitLab repo via HTTPS with token
+      git:
+        repo: "https://oauth2:{{ gitlab_token }}@gitlab.com/solodium191/homelab-go.git"
+        dest: /tmp/k8s-platform
+        version: Infrastructure
+        force: yes
+
+    - name: Apply ArgoCD Applications
+      shell: kubectl apply -f {{ item }}
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      loop:
+        - /tmp/k8s-platform/Ingress-controller/Application.yaml
+        - /tmp/k8s-platform/Keda/Application.yaml
+        - /tmp/k8s-platform/gitlab-runner/Application.yaml
+        - /tmp/k8s-platform/kube-prometheus-stack/Application.yaml
+        - /tmp/k8s-platform/logging-with-opensearch/fluent/Application.yaml
+        - /tmp/k8s-platform/logging-with-opensearch/opensearch/Application.yaml
+        - /tmp/k8s-platform/logging-with-opensearch/opensearchdashboards/Application.yaml
