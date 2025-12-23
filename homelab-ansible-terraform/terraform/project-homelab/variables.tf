@@ -13,3 +13,14 @@ variable "workers" {
     "worker2"
   ]
 }
+variable "dns_zone" {
+  type = list(string)
+  default = [ 
+    "grafana",
+    "prom",
+    "alert"
+   ]
+}
+variable "region" {
+  default = "ru_central1"
+}

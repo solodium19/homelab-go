@@ -111,6 +111,7 @@ alertmanager:
 
 
 prometheus:
+  enabled: true
   prometheusSpec:
     hostNetwork: true
     dnsPolicy: ClusterFirstWithHostNet

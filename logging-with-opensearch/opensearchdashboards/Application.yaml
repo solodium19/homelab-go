@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opensearch-dashboards
+  namespace: argocd
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://opensearch-project.github.io/helm-charts
+      chart: opensearch-dashboards
+      targetRevision: 3.3.0
+      helm:
+       valueFiles:
+        - $values/logging-with-opensearch/opensearchdashboards/opensearch-dashboards.yaml
+    - repoURL: https://gitlab.com/solodium191/homelab-go.git
+      targetRevision: Infrastructure
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

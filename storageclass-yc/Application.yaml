@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: csi-s3
+  namespace: argocd
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://yandex-cloud.github.io/k8s-csi-s3/charts
+      chart: csi-s3
+      targetRevision: 0.41.0
+      helm:
+       valueFiles:
+        - $values/storageclass-yc/values.yaml
+    - repoURL: https://gitlab.com/solodium191/homelab-go.git
+      targetRevision: Infrastructure
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

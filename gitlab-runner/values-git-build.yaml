@@ -19,8 +19,6 @@ serviceAccount:
 gitlabUrl: "https://gitlab.com/"
 runnerToken: glrt-_3dca7iGMF2K6Jb1tDs8lG86MQpwOjE5cGprNAp0OjMKdTpqMWM0aRg.01.1j0ub3t1x
 namespace: ci-cd
-nodeSelector:
- kubernetes.io/hostname: node02-git
 tolerations:
  - key: "ci"
    operator: "Equal"

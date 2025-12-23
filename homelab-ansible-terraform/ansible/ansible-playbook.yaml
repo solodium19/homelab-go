@@ -46,33 +46,6 @@
     rescue:
       - debug:
           msg: "Caught a error, check dependecies for Ubuntu"
-  
-  - name: Downloading docker in CentOS
-    when: ansible_distribution == "CentOS"
-    block:
-      - name: Add Docker repository to CentOS
-        yum_repository:
-         name: docker-ce-stable
-         description: Docker CE Stable - x86_64
-         baseurl: https://download.docker.com/linux/centos/7/x86_64/stable
-         gpgcheck: yes
-         gpgkey: https://download.docker.com/linux/centos/gpg
-         enabled: yes
-
-      - name: Install git
-        yum:
-         name: git
-         state: present
-
-      - name: install docker CentOS
-        yum:
-         name: "{{docker_packages}}"
-         state: latest
-         update_cache: yes
-    rescue:
-      - debug:
-          msg: "Caught a error, check dependecies for CentOS"
-
 
 
 - name: Install Kubernetes
@@ -249,6 +222,303 @@
         chdir: /home/vladislav
       when: not stat_result.stat.exists
 
+- name: Setup Kubernetes control plane metrics monitoring and secret for storageClass
+  hosts: masters
+  become: yes
+  vars_files:
+    - /tmp/yc-csi.json
+  vars:
+    local_pki_dir: "{{ playbook_dir }}/files/controlplane-metrics-pki"
+    local_config_dir: "{{ playbook_dir }}/files/controlplane-metrics-configs"
+    remote_pki_dir: /etc/kubernetes/pki
+    cert_validity_days: 365
+    monitoring_namespace: monitoring
+  tasks:
+  
+    - name: Create local directories
+      run_once: yes
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ local_pki_dir }}"
+        - "{{ local_config_dir }}"
+
+    - name: Generate controller-manager CSR config
+      run_once: yes
+      copy:
+        content: |
+          [ req ]
+          default_bits       = 2048
+          prompt             = no
+          default_md         = sha256
+          req_extensions     = v3_req
+          distinguished_name = dn
+          
+          [ dn ]
+          CN = system:kube-controller-manager
+          
+          [ v3_req ]
+          keyUsage = critical,digitalSignature,keyEncipherment
+          extendedKeyUsage = clientAuth
+        dest: "{{ local_config_dir }}/cm-metrics-csr.conf"
+
+    - name: Generate scheduler CSR config
+      run_once: yes
+      copy:
+        content: |
+          [ req ]
+          default_bits       = 2048
+          prompt             = no
+          default_md         = sha256
+          req_extensions     = v3_req
+          distinguished_name = dn
+          
+          [ dn ]
+          CN = system:kube-scheduler
+          
+          [ v3_req ]
+          keyUsage = critical,digitalSignature,keyEncipherment
+          extendedKeyUsage = clientAuth
+        dest: "{{ local_config_dir }}/scheduler-metrics-csr.conf"
+
+    - name: Generate controller-manager private key
+      run_once: yes
+      command: openssl genrsa -out {{ local_pki_dir }}/cm-metrics.key 2048
+      args:
+        creates: "{{ local_pki_dir }}/cm-metrics.key"
+
+    - name: Generate controller-manager CSR
+      run_once: yes
+      command: >
+        openssl req -new 
+        -key {{ local_pki_dir }}/cm-metrics.key
+        -out {{ local_pki_dir }}/cm-metrics.csr
+        -config {{ local_config_dir }}/cm-metrics-csr.conf
+      args:
+        creates: "{{ local_pki_dir }}/cm-metrics.csr"
+
+    - name: Generate controller-manager certificate
+      run_once: yes
+      command: >
+        openssl x509 -req
+        -in {{ local_pki_dir }}/cm-metrics.csr
+        -CA {{ remote_pki_dir }}/ca.crt
+        -CAkey {{ remote_pki_dir }}/ca.key
+        -CAcreateserial
+        -out {{ local_pki_dir }}/cm-metrics.crt
+        -days {{ cert_validity_days }}
+        -extensions v3_req
+        -extfile {{ local_config_dir }}/cm-metrics-csr.conf
+      args:
+        creates: "{{ local_pki_dir }}/cm-metrics.crt"
+
+    - name: Generate scheduler private key
+      run_once: yes
+      command: openssl genrsa -out {{ local_pki_dir }}/scheduler-metrics.key 2048
+      args:
+        creates: "{{ local_pki_dir }}/scheduler-metrics.key"
+
+    - name: Generate scheduler CSR
+      run_once: yes
+      command: >
+        openssl req -new
+        -key {{ local_pki_dir }}/scheduler-metrics.key
+        -out {{ local_pki_dir }}/scheduler-metrics.csr
+        -config {{ local_config_dir }}/scheduler-metrics-csr.conf
+      args:
+        creates: "{{ local_pki_dir }}/scheduler-metrics.csr"
+
+    - name: Generate scheduler certificate
+      run_once: yes
+      command: >
+        openssl x509 -req
+        -in {{ local_pki_dir }}/scheduler-metrics.csr
+        -CA {{ remote_pki_dir }}/ca.crt
+        -CAkey {{ remote_pki_dir }}/ca.key
+        -CAcreateserial
+        -out {{ local_pki_dir }}/scheduler-metrics.crt
+        -days {{ cert_validity_days }}
+        -extensions v3_req
+        -extfile {{ local_config_dir }}/scheduler-metrics-csr.conf
+      args:
+        creates: "{{ local_pki_dir }}/scheduler-metrics.crt"
+
+    - name: Create monitoring namespace
+      shell: kubectl create namespace {{ monitoring_namespace }}
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+
+    - name: Check kube-controlplane-metrics-certs secret
+      run_once: yes
+      shell: kubectl -n {{ monitoring_namespace }} get secret kube-controlplane-metrics-certs --ignore-not-found -o name
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: secret_check
+
+    - name: Create Kubernetes secret with control plane certificates
+      run_once: yes
+      shell: >
+        kubectl -n {{ monitoring_namespace }} create secret generic kube-controlplane-metrics-certs
+        --from-file=ca.crt={{ remote_pki_dir }}/ca.crt
+        --from-file=cm.crt={{ local_pki_dir }}/cm-metrics.crt
+        --from-file=cm.key={{ local_pki_dir }}/cm-metrics.key
+        --from-file=scheduler.crt={{ local_pki_dir }}/scheduler-metrics.crt
+        --from-file=scheduler.key={{ local_pki_dir }}/scheduler-metrics.key
+      when: secret_check.stdout == ""
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      changed_when: true
+
+    - name: Check controller-manager
+      run_once: yes
+      shell: kubectl get clusterrole allow-cm-metrics --ignore-not-found -o name
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: cm_clusterrole_check
+
+    - name: Apply controller-manager RBAC
+      run_once: yes
+      shell: |
+        kubectl apply -f - <<EOF
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRole
+        metadata:
+          name: allow-cm-metrics
+        rules:
+          - nonResourceURLs: ["/metrics"]
+            verbs: ["get"]
+        ---
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        metadata:
+          name: allow-cm-metrics
+        subjects:
+          - kind: User
+            name: system:kube-controller-manager
+        roleRef:
+          kind: ClusterRole
+          name: allow-cm-metrics
+          apiGroup: rbac.authorization.k8s.io
+        EOF
+      when: cm_clusterrole_check.stdout == ""
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      changed_when: true
+
+    - name: Check scheduler
+      run_once: yes
+      shell: >
+        kubectl get clusterrole allow-scheduler-metrics --ignore-not-found -o name
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: scheduler_clusterrole_check
+
+    - name: Apply scheduler RBAC
+      run_once: yes
+      shell: |
+        kubectl apply -f - <<EOF
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRole
+        metadata:
+          name: allow-scheduler-metrics
+        rules:
+          - nonResourceURLs: ["/metrics"]
+            verbs: ["get"]
+        ---
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        metadata:
+          name: allow-scheduler-metrics
+        subjects:
+          - kind: User
+            name: system:kube-scheduler
+        roleRef:
+          kind: ClusterRole
+          name: allow-scheduler-metrics
+          apiGroup: rbac.authorization.k8s.io
+        EOF
+      when: scheduler_clusterrole_check.stdout == ""
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      changed_when: true
+
+    - name: Check scrape config
+      run_once: yes
+      shell: >
+        kubectl -n {{ monitoring_namespace }} get secret prometheus-additional-scrape-configs
+        --ignore-not-found -o name
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: scrape_secret_check
+
+    - name: Generate scrape config file
+      run_once: yes
+      copy:
+        content: |
+          - job_name: kube-controller-manager
+            scheme: https
+            static_configs:
+              - targets: ["127.0.0.1:10257"]
+            tls_config:
+              ca_file: /etc/prometheus/secrets/kube-controlplane-metrics-certs/ca.crt
+              cert_file: /etc/prometheus/secrets/kube-controlplane-metrics-certs/cm.crt
+              key_file: /etc/prometheus/secrets/kube-controlplane-metrics-certs/cm.key
+              insecure_skip_verify: true
+          
+          - job_name: kube-scheduler
+            scheme: https
+            static_configs:
+              - targets: ["127.0.0.1:10259"]
+            tls_config:
+              ca_file: /etc/prometheus/secrets/kube-controlplane-metrics-certs/ca.crt
+              cert_file: /etc/prometheus/secrets/kube-controlplane-metrics-certs/scheduler.crt
+              key_file: /etc/prometheus/secrets/kube-controlplane-metrics-certs/scheduler.key
+              insecure_skip_verify: true
+          
+          - job_name: kube-etcd
+            scheme: http
+            static_configs:
+              - targets: ["127.0.0.1:2381"]
+          
+          - job_name: kube-proxy
+            scheme: http
+            static_configs:
+              - targets: ["127.0.0.1:10249"]
+        dest: "{{ local_config_dir }}/scrape-configs.yaml"
+      when: scrape_secret_check.stdout == ""
+
+    - name: Create scrape config secret
+      run_once: yes
+      shell: >
+        kubectl -n {{ monitoring_namespace }} create secret generic prometheus-additional-scrape-configs
+        --from-file=secret.yaml={{ local_config_dir }}/scrape-configs.yaml
+      when: scrape_secret_check.stdout == ""
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      changed_when: true
+  
+    - name: Create yc-sc secret
+      run_once: yes
+      shell: |
+        kubectl apply -f - <<EOF
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: csi-s3-secret
+          namespace: kube-system
+        type: Opaque
+        stringData:
+          accessKeyID: {{ access_key }}
+          secretAccessKey: {{ secret_key }}
+          endpoint: https://storage.yandexcloud.net
+        EOF
+      when: cm_clusterrole_check.stdout == ""
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      changed_when: true
+
 - name: Install ArgoCD
   hosts: masters
   become: yes
@@ -261,11 +531,11 @@
         KUBECONFIG: /etc/kubernetes/admin.conf
 
     - name: ArgoCD download in cluster
-      shell: kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+      shell: kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.2.0/manifests/ha/install.yaml
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
 
-    - name: Clone private GitLab repo via HTTPS with token
+    - name: Clone gitlab
       git:
         repo: "https://oauth2:{{ gitlab_token }}@gitlab.com/solodium191/homelab-go.git"
         dest: /tmp/k8s-platform
@@ -284,3 +554,4 @@
         - /tmp/k8s-platform/logging-with-opensearch/fluent/Application.yaml
         - /tmp/k8s-platform/logging-with-opensearch/opensearch/Application.yaml
         - /tmp/k8s-platform/logging-with-opensearch/opensearchdashboards/Application.yaml
+        - /tmp/k8s-platform/storageclass-yc/Application.yaml

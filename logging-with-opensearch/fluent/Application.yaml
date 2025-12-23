@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fluent
+  namespace: argocd
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://fluent.github.io/helm-charts
+      chart: fluent-bit
+      targetRevision: 0.54.0
+      helm:
+       valueFiles:
+        - $values/logging-with-opensearch/fluent/fluent-with-lua-newv4-latest.yaml
+    - repoURL: https://gitlab.com/solodium191/homelab-go.git
+      targetRevision: Infrastructure
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

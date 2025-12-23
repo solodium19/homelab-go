@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitlab-runner
+  namespace: argocd
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://charts.gitlab.io
+      chart: gitlab-runner
+      targetRevision: 0.84.0
+      helm:
+       valueFiles:
+         - $values/gitlab-runner/values-git-build.yaml
+    - repoURL: https://gitlab.com/solodium191/homelab-go.git
+      targetRevision: Infrastructure
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ci-cd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

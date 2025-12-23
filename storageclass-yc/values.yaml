@@ -1,0 +1,32 @@
+secret:
+ create: false
+ name: csi-s3-secret
+ namespace: kube-system
+
+storageClass:
+ create: true
+ name: yc-s3-opensearch
+ provisioner: ru.yandex.s3.csi
+ reclaimPolicy: Delete
+ volumeBindingMode: Immediate
+ allowVolumeExpansion: false
+
+ parameters:
+  bucket: opensearch-data-prod
+  mounter: geesefs
+  options: "--dir-mode=0777 --file-mode=0666"
+
+ csi:
+  provisionerSecretName: csi-s3-secret
+  provisionerSecretNamespace: kube-system
+  nodeStageSecretName: csi-s3-secret
+  nodeStageSecretNamespace: kube-system
+  nodePublishSecretName: csi-s3-secret
+  nodePublishSecretNamespace: kube-system
+
+controller:
+ replicas: 1
+
+node:
+ tolerations:
+ - operator: Exists
