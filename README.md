@@ -49,7 +49,8 @@ homelab-go/
 │   │   |── logging-with-opensearch/  # Логирование
 |   |   |── gitlab-runner/            # Self-Hoster runner gitlab
 |   |   |── cert-manager/             # Автоматизированная система сертификации
-|   |   └── homelab-ansible-terraform/ # Автоматизация развертывания и настройки кластера
+|   |   |── homelab-ansible-terraform/ # Автоматизация развертывания и настройки кластера в облаке Y.Cloud
+|   |   └── storageclass-yc/          # StorageClass от Yandex.Cloud на s3 bucket в наш кластер
 │
 ├── develop/                  # Полноценное dev-окружение
 ├── stage/                    # stage-окружение
