@@ -108,7 +108,7 @@ EOF
 
 resource "yandex_lb_target_group" "tg-cluster" {
   name  = "tg-cluster"
-  region_id = "ru-central1"
+  region_id = var.region
   labels = {
     project = "test"
   }
@@ -147,7 +147,7 @@ resource "yandex_lb_network_load_balancer" "lb-cluster" {
 }
 
 resource "yandex_vpc_security_group" "sg" {
-  name        = "sgingress"
+  name        = "SG for ingressnginx"
   description = "asf"
   network_id  = yandex_vpc_network.homelab-network.id
   labels = {
@@ -198,35 +198,4 @@ resource "yandex_dns_recordset" "main-zone-record" {
       for e in l.external_address_spec : e.address
     ]
   ])
-}
-
-resource "yandex_iam_service_account" "csi" {
-  name = "k8s-csi-sa"
-}
-
-resource "yandex_iam_service_account_static_access_key" "csi" {
-  service_account_id = yandex_iam_service_account.csi.id
-}
-
-resource "local_file" "yc_csi_vars" {
-  filename = "/tmp/yc-csi.json"
-
-  content = jsonencode({
-    access_key = yandex_iam_service_account_static_access_key.csi.access_key
-    secret_key = yandex_iam_service_account_static_access_key.csi.secret_key
-  })
-
-  file_permission = "0600"
-}
-
-resource "yandex_storage_bucket" "opensearch" {
-  bucket = "opensearch-data-prod"
-  access_key = yandex_iam_service_account_static_access_key.csi.access_key
-  secret_key = yandex_iam_service_account_static_access_key.csi.secret_key
-}
-
-resource "yandex_resourcemanager_folder_iam_member" "csi_s3_access" {
-  folder_id = var.folder_id
-  role      = "storage.editor"
-  member    = "serviceAccount:${yandex_iam_service_account.csi.id}"
 }

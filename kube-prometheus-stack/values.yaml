@@ -1,5 +1,18 @@
 alertmanager:
   enabled: true
+  
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/rewrite-target: /
+    hosts:
+      - alert.solodium-test.work.gd
+    tls:
+      - secretName: alertmanager-general-tls
+        hosts:
+          - alert.solodium-test.work.gd
 
   config:
     global:
@@ -112,6 +125,20 @@ alertmanager:
 
 prometheus:
   enabled: true
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/rewrite-target: /
+    hosts:
+      - prom.solodium-test.work.gd
+    tls:
+      - secretName: prometheus-general-tls
+        hosts:
+          - prom.solodium-test.work.gd
+
   prometheusSpec:
     hostNetwork: true
     dnsPolicy: ClusterFirstWithHostNet
@@ -149,3 +176,18 @@ kubeScheduler:
 kubeProxy:
   serviceMonitor:
     enabled: false
+
+grafana:
+  enabled: true
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/rewrite-target: /
+    hosts:
+      - grafana.solodium-test.work.gd
+    tls:
+      - secretName: grafana-general-tls
+        hosts:
+          - grafana.solodium-test.work.gd

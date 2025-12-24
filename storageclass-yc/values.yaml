@@ -12,9 +12,8 @@ storageClass:
  allowVolumeExpansion: false
 
  parameters:
-  bucket: opensearch-data-prod
-  mounter: geesefs
   options: "--dir-mode=0777 --file-mode=0666"
+  createBucketIfNotExists: "false"
 
  csi:
   provisionerSecretName: csi-s3-secret

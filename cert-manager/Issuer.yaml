@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: letsencrypt
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://gitlab.com/solodium191/homelab-go.git
+    targetRevision: Infrastructure
+    path: cert-manager
+    directory:
+      include: ClusterIssuer-LetsEncrypt.yml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      selfHeal: true

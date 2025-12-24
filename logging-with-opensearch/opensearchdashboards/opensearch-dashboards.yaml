@@ -10,7 +10,25 @@ service:
 
 persistentVolume:
   enabled: true
-  storageClass: "manual"
+  storageClass: yc-s3-opensearch
   accessModes:
     - ReadWriteOnce
   size: 10Gi
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: opensearch.solodium-test.work.gd
+      paths:
+        - path: /
+      backend:
+        serviceName: dashboards-opensearch-dashboards
+        serivcePort: 5601
+  tls:
+    - secretName: opensearch-general-tls
+      hosts:
+        - opensearch.solodium-test.work.gd

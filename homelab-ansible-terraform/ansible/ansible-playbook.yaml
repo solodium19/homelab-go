@@ -222,11 +222,9 @@
         chdir: /home/vladislav
       when: not stat_result.stat.exists
 
-- name: Setup Kubernetes control plane metrics monitoring and secret for storageClass
+- name: Setup Kubernetes control plane metrics monitoring
   hosts: masters
   become: yes
-  vars_files:
-    - /tmp/yc-csi.json
   vars:
     local_pki_dir: "{{ playbook_dir }}/files/controlplane-metrics-pki"
     local_config_dir: "{{ playbook_dir }}/files/controlplane-metrics-configs"
@@ -498,26 +496,6 @@
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       changed_when: true
-  
-    - name: Create yc-sc secret
-      run_once: yes
-      shell: |
-        kubectl apply -f - <<EOF
-        apiVersion: v1
-        kind: Secret
-        metadata:
-          name: csi-s3-secret
-          namespace: kube-system
-        type: Opaque
-        stringData:
-          accessKeyID: {{ access_key }}
-          secretAccessKey: {{ secret_key }}
-          endpoint: https://storage.yandexcloud.net
-        EOF
-      when: cm_clusterrole_check.stdout == ""
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      changed_when: true
 
 - name: Install ArgoCD
   hosts: masters
@@ -554,4 +532,3 @@
         - /tmp/k8s-platform/logging-with-opensearch/fluent/Application.yaml
         - /tmp/k8s-platform/logging-with-opensearch/opensearch/Application.yaml
         - /tmp/k8s-platform/logging-with-opensearch/opensearchdashboards/Application.yaml
-        - /tmp/k8s-platform/storageclass-yc/Application.yaml
