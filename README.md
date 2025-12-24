@@ -31,7 +31,7 @@ Git Push → GitLab CI → Kaniko build/push → Update manifests → ArgoCD syn
 
 ---
 
-## 📁 Структура репозитория
+##  Структура репозитория
 
 ```
 homelab-go/
@@ -76,10 +76,10 @@ homelab-go/
 
 1. Разработчик пушит изменения в ветку приложения
 2. GitLab CI собирает Docker‑образ
-3. Образ пушится в registry
-4. GitLab обновляет теги в манифестах dev/stage/prod
+3. Данный образ сканируется на уязвимости
+3. Образ пушится в registry, если он прошёл успешно скан, отчёт о скане сохраняется артефактом на GitLab
+4. GitLab обновляет теги в манифестах dev/stage/prod в Helm Values/Kustomize overlays
 5. ArgoCD autodsync деплоит нужные окружения
-(В будущем планируется добавить/изменить на helm, проверку образов и тесты кода)
 ---
 
 ##  GitOps (ArgoCD)
@@ -93,11 +93,6 @@ ArgoCD автоматически управляет всем состояние
 * Health checks
 * Rollout policy
 * Автоматическая доставка новых версий
-
-Структура приложения:
-
-* `applications/` — ArgoCD App/Project
-* `overlays/` — независимые конфигурации dev/stage/prod
 
 ---
 
@@ -115,7 +110,7 @@ ArgoCD автоматически управляет всем состояние
 
 ---
 
-## 📈 Мониторинг и алертинг
+##  Мониторинг и алертинг
 
 Используется:
 
@@ -157,11 +152,11 @@ ArgoCD автоматически управляет всем состояние
 
 ## Infrastructure as Code (Terraform + Ansible)
 
-Для управления инфраструктурой и автоматизации развёртывания используется связка Terraform + Ansible.
+Для управления инфраструктурой и автоматизации развёртывания используется связка Terraform + Ansible на базе Yandex Cloud.
 
 Terraform:
 - создаёт облачную инфраструктуру в Yandex Cloud
-- поднимает VPC, Subnet и 3 Compute Instance (1 master, 2 worker)
+- поднимает VPC, Subnet, DNS, Bucket, ServiceAcc и 3 Compute Instance (1 master, 2 worker)
 - вся конфигурация описана декларативно (main.tf, variables.tf, terraform.tfvars)
 
 Ansible:
@@ -169,6 +164,7 @@ Ansible:
 - инициализирует Kubernetes через kubeadm
 - подключает worker-ноды
 - устанавливает CNI
+- добавляются необходимые изменения в кластер для дальнейшей работы ArgoCD
 - разворачивает ArgoCD и GitOps Application
 
 Полный lifecycle развёртывания:
@@ -183,11 +179,11 @@ Git → Single Source of Truth
 
 Используются три независимых окружения:
 
-* `dev/` — для разработки и тестов
-* `stage/` — предпрод
+* `dev/` — для разработки
+* `stage/` — предпрод/тесты
 * `prod/` — стабильная версия
 
-Разделение выполнено через Kustomize overlays. # Планируется переход на helm
+Разделение выполнено через Kustomize overlays, а также написан чарт на Helm 
 
 ---
 
